@@ -10,8 +10,13 @@ Fetch Google Search Console performance data and save it locally for use with `/
 ## Usage
 
 ```
-/fetch-gsc
+/fetch-gsc                    Fetch performance data (queries, pages, positions)
+/fetch-gsc --submit-sitemap   Resubmit the sitemap so Google recrawls the URL listing
 ```
+
+## Check Invocation Mode
+
+If invoked with `--submit-sitemap` or `submit-sitemap`, skip to the **Submit Sitemap Command** section below. Otherwise, continue with the data-fetch steps immediately following.
 
 ## Steps
 
@@ -154,3 +159,56 @@ Fetch Google Search Console performance data and save it locally for use with `/
      ```
 
 Do NOT generate a strategy report. This command only fetches GSC data; strategy generation is handled by `/seo-strategy`.
+
+---
+
+## Submit Sitemap Command
+
+If invoked with `--submit-sitemap` or `submit-sitemap`:
+
+**What this does, and what it does not do:** Google's Indexing API is restricted by Google's own terms to `JobPosting` and `BroadcastEvent` structured data, so it is not a legitimate way to force-index a regular article page. Resubmitting the sitemap via `sitemaps.submit` is the actual sanctioned programmatic step: it tells Google the URL listing changed and should be recrawled, but it does not guarantee immediate indexing of any single URL. If a specific URL needs to be indexed sooner, that still requires the manual "Request Indexing" button in GSC's URL Inspection tool (no public API exists for that, and it's rate-limited to roughly 10-12 URLs/day).
+
+1. **Locate Skill Configuration and Script:**
+   - Same config resolution as the data-fetch flow above: `.seo-content/config.json` (project) first, then `~/.claude/skills/seo-strategy/config.json` (personal)
+   - Check for `scripts/submit-sitemap.js` in the seo-strategy skill directory
+   - If script not found, inform the user:
+     ```
+     ❌ Error: sitemap submission script not found
+
+     Expected at: ~/.claude/skills/seo-strategy/scripts/submit-sitemap.js
+
+     Please ensure the seo-strategy skill is up to date.
+     ```
+   - Exit if script not found
+
+2. **Verify `sitemapUrl` is configured:**
+   - Read `gscIntegration.sitemapUrl` from the resolved config
+   - If missing, inform the user:
+     ```
+     ❌ Error: no sitemapUrl configured
+
+     Add it to .seo-content/config.json:
+       "gscIntegration": { ..., "sitemapUrl": "https://yoursite.com/sitemap.xml" }
+
+     Domain properties (sc-domain:...) can't derive this automatically
+     since they don't pin a scheme or www/non-www -- it must be set explicitly.
+     ```
+   - Exit if missing (the script also checks this itself, but surfacing it here avoids an unnecessary OAuth prompt)
+
+3. **Check Script Dependencies:**
+   - Same as step 4 of the data-fetch flow: check for `node_modules` in the scripts directory, prompt `npm install` in `~/.claude/skills/seo-strategy/scripts` if missing
+
+4. **Execute Submit Script:**
+   - Use Bash tool to run:
+     ```bash
+     cd [skill-directory]/scripts && node submit-sitemap.js
+     ```
+   - **This may require one-time interactive OAuth consent** (the script requests a different, read-write scope than the data-fetch script, so it keeps its own token file the first time it runs for a property). If the script prints an authorization URL, surface it to the user and let the run continue in the background rather than blocking synchronously, since approving it happens in their browser, not the terminal.
+   - Use a reasonable timeout; if waiting on user consent, prefer running the command in the background and checking back rather than a short blocking timeout
+
+5. **Handle Results:**
+   - Success: display the script's own confirmation output (submission timestamp, warnings/errors count from `sitemaps.get`)
+   - Failure with `insufficient permission`: this means the authenticated Google account only has Restricted (read-only) access to the property in Search Console, not Full or Owner -- a GSC permission-tier issue, not an OAuth scope problem. The script's own error output includes the Search Console users-and-permissions URL and the exact commands to delete the stale token and retry with a different account. Relay that guidance rather than re-deriving it.
+   - Other failures: relay the script's error output directly
+
+Do NOT run the data-fetch flow when in this mode, and do NOT generate a strategy report.
