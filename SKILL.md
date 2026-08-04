@@ -117,9 +117,11 @@ If invoked with `--submit-sitemap` or `submit-sitemap`, skip to the **Submit Sit
        ✅ GSC data fetch completed successfully!
 
        Data saved to: [dataDir]
+       History snapshot: [dataDir]/history/[window end date].json
 
        You can now run /seo-strategy to generate a GSC-enhanced strategy report.
        ```
+   - The four files in `dataDir` are overwritten every run. The snapshot under `history/` is not, and it is the only thing that accumulates a time series, so never suggest clearing that directory to save space. It is what `/seo-score-validate` reads to check whether content changes moved rankings, and a deleted snapshot cannot be re-fetched: Search Console will not serve a window that has already rolled out of its retention.
 
    - If script fails (non-zero exit code):
      - Display the error output
@@ -156,7 +158,11 @@ If invoked with `--submit-sitemap` or `submit-sitemap`, skip to the **Submit Sit
 
      3. Re-fetch GSC data (recommended weekly):
         /fetch-gsc
+
+     4. Check whether scored content actually moved:
+        /seo-score-validate
      ```
+   - Weekly re-fetching matters more than it used to: each run adds a point to the history series, and the series is what makes ranking movement answerable later.
 
 Do NOT generate a strategy report. This command only fetches GSC data; strategy generation is handled by `/seo-strategy`.
 
