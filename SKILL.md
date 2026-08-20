@@ -82,9 +82,9 @@ If invoked with `--submit-sitemap` or `submit-sitemap`, skip to the **Submit Sit
      ```
      ⚠️  Script dependencies not installed
 
-     First-time setup required:
-     cd ~/.claude/skills/seo-strategy/scripts
-     npm install
+     First-time setup required (run from anywhere; --prefix keeps you in the
+     project directory, which the fetch step depends on):
+     npm install --prefix ~/.claude/skills/seo-strategy/scripts
 
      Then run /fetch-gsc again.
      ```
@@ -103,10 +103,18 @@ If invoked with `--submit-sitemap` or `submit-sitemap`, skip to the **Submit Sit
      ```
 
 6. **Execute Fetch Script:**
-   - Use Bash tool to run the fetch script:
+   - Run the script **from the project root**, referencing it by absolute path:
      ```bash
-     cd [skill-directory]/scripts && node fetch-gsc-data.js
+     node ~/.claude/skills/seo-strategy/scripts/fetch-gsc-data.js
      ```
+   - Do NOT `cd` into the skill's `scripts/` directory first. The script resolves
+     both its config and its output location relative to the current working
+     directory: it looks for `.seo-content/config.json` under the cwd, and writes
+     `dataDir` under the cwd. Running it from the skill directory makes a
+     project-scoped config invisible (the run exits 1), and if a personal
+     `~/.claude/skills/seo-strategy/config.json` happens to exist it is worse than
+     an error, because the run silently writes the project's GSC data into the
+     skill directory instead of the project.
    - Use a reasonable timeout (5 minutes should be sufficient)
    - Display the script's output in real-time
 
@@ -205,9 +213,11 @@ If invoked with `--submit-sitemap` or `submit-sitemap`:
    - Same as step 4 of the data-fetch flow: check for `node_modules` in the scripts directory, prompt `npm install` in `~/.claude/skills/seo-strategy/scripts` if missing
 
 4. **Execute Submit Script:**
-   - Use Bash tool to run:
+   - Run the script **from the project root**, referencing it by absolute path
+     (same cwd rule as the data-fetch flow above, since it resolves config the
+     same way):
      ```bash
-     cd [skill-directory]/scripts && node submit-sitemap.js
+     node ~/.claude/skills/seo-strategy/scripts/submit-sitemap.js
      ```
    - **This may require one-time interactive OAuth consent** (the script requests a different, read-write scope than the data-fetch script, so it keeps its own token file the first time it runs for a property). If the script prints an authorization URL, surface it to the user and let the run continue in the background rather than blocking synchronously, since approving it happens in their browser, not the terminal.
    - Use a reasonable timeout; if waiting on user consent, prefer running the command in the background and checking back rather than a short blocking timeout
